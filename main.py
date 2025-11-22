@@ -54,10 +54,12 @@ if __name__ == "__main__":
 
     print("\n=== NS1 ===")
     c = s7_connect()
-    s7_set_timers(c, 1, 2)
+    # First value is the ON_TIMER for NS1, second value is the OFF_TIMER for NS1
+    s7_set_timers(c, 10, 3)
     c.disconnect()
 
     print("\n=== NS2 ===")
-    ns2_set_timer_and_start(1, 2) 
+    # First value is the ON_TIMER for NS2, second value is the OFF_TIMER for NS2
+    ns2_set_timer_and_start(10, 3) 
 
     print("\n[✓] NS1 + NS2 complete")
