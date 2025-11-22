@@ -1,7 +1,5 @@
 import struct
-import time
 import snap7
-from snap7.util import set_bool
 from snap7.type import Areas
 from opcua import Client, ua
 
@@ -12,17 +10,14 @@ OPC_URL = f"opc.tcp://{PLC_IP}:4840"
 # NS1 FUNCTIONS (Snap7)
 # ============================================================
 
-NS1_ON_TIMER = 1
-NS1_OFF_TIMER = 1
-
 def s7_connect():
     c = snap7.client.Client()
     c.connect(PLC_IP, 0, 1)
     return c
 
-def s7_set_timers(c: Client):
-    c.write_area(Areas.DB, 1, 2, struct.pack('>H', NS1_ON_TIMER))
-    c.write_area(Areas.DB, 1, 4, struct.pack('>H', NS1_OFF_TIMER))
+def s7_set_timers(c: Client, on_timer, off_timer):
+    c.write_area(Areas.DB, 1, 2, struct.pack('>H', on_timer))
+    c.write_area(Areas.DB, 1, 4, struct.pack('>H', off_timer))
 
 # ============================================================
 # NS2 FUNCTIONS (OPC UA)
@@ -40,11 +35,11 @@ def opc_write_any(client, nodeid, value):
     node.set_value(dv)
     print(f"[NS2] {nodeid} = {value} (type OK)")
 
-def ns2_set_timer_and_start(ms_time):
+def ns2_set_timer_and_start(ms_on_time, ms_off_time):
     c = Client(OPC_URL)
     c.connect()
-    opc_write_any(c, NODE_TEMPS_ON, ms_time)
-    opc_write_any(c, NODE_TEMPS_OFF, ms_time)
+    opc_write_any(c, NODE_TEMPS_ON, ms_on_time)
+    opc_write_any(c, NODE_TEMPS_OFF, ms_off_time)
     opc_write_any(c, NODE_ON_OFF, True)
     opc_write_any(c, HELP_VALUE, "1")
     c.disconnect()
@@ -59,10 +54,10 @@ if __name__ == "__main__":
 
     print("\n=== NS1 ===")
     c = s7_connect()
-    s7_set_timers(c)
+    s7_set_timers(c, 1, 2)
     c.disconnect()
 
     print("\n=== NS2 ===")
-    ns2_set_timer_and_start(1)  # 1 second
+    ns2_set_timer_and_start(1, 2) 
 
     print("\n[✓] NS1 + NS2 complete")
