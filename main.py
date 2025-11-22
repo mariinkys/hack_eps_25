@@ -12,11 +12,17 @@ OPC_URL = f"opc.tcp://{PLC_IP}:4840"
 # NS1 FUNCTIONS (Snap7)
 # ============================================================
 
+NS1_ON_TIMER = 1
+NS1_OFF_TIMER = 1
+
 def s7_connect():
     c = snap7.client.Client()
     c.connect(PLC_IP, 0, 1)
     return c
 
+def s7_set_timers(c: Client):
+    c.write_area(Areas.DB, 1, 2, struct.pack('>H', NS1_ON_TIMER))
+    c.write_area(Areas.DB, 1, 4, struct.pack('>H', NS1_OFF_TIMER))
 
 # ============================================================
 # NS2 FUNCTIONS (OPC UA)
@@ -53,21 +59,7 @@ if __name__ == "__main__":
 
     print("\n=== NS1 ===")
     c = s7_connect()
-
-    # Write boolean to DB1.DBX0.0
-    data = c.read_area(Areas.DB, 1, 0, 1)
-    set_bool(data, 0, 0, True)
-    c.write_area(Areas.DB, 1, 0, bytearray([0x01]))
-
-    # Write integer 13 to DB1.DBD1 (4 bytes starting at offset 1)
-    val = 1
-    #data = bytearray(struct.pack('>i', val))
-    c.write_area(Areas.DB, 1, 1, bytearray(struct.pack('>h', 1)))
-    # Write integer 14 to DB1.DBD3 (4 bytes starting at offset 3)
-    # data = bytearray(struct.pack(">i", 1))
-    c.write_area(Areas.DB, 1, 3, bytearray(struct.pack(">i", 2)))
-    c.write_area(Areas.DB, 1, 7, bytearray(struct.pack(">f", 1)))
-
+    s7_set_timers(c)
     c.disconnect()
 
     print("\n=== NS2 ===")
