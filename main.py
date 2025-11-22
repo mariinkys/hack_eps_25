@@ -1,4 +1,5 @@
 import struct
+import time
 import snap7
 from snap7.util import set_bool
 from snap7.type import Areas
@@ -15,25 +16,6 @@ def s7_connect():
     c = snap7.client.Client()
     c.connect(PLC_IP, 0, 1)
     return c
-
-def ns1_turn_on():
-    c = s7_connect()
-    data = c.read_area(Areas.DB, 1, 0, 1)
-    set_bool(data, 0, 0, True)          # DB1.DBX0.0
-    c.write_area(Areas.DB, 1, 0, data)
-    c.disconnect()
-    print("[NS1] Light ON (DB1.DBX0.0)")
-
-def ns1_set_timer(db, offset, ms_value):
-    """
-    Writes the NS1 timer using Snap7.
-    The value must be a DINT in milliseconds.
-    """
-    c = s7_connect()
-    data = struct.pack(">i", ms_value)
-    c.write_area(Areas.DB, db, offset, data)
-    c.disconnect()
-    print(f"[NS1] Timer set to {ms_value} ms (DB{db}.DBD{offset})")
 
 
 # ============================================================
@@ -70,13 +52,23 @@ def ns2_set_timer_and_start(ms_time):
 if __name__ == "__main__":
 
     print("\n=== NS1 ===")
-    ns1_turn_on()
+    c = s7_connect()
 
-    # 👇 YOU MUST SET THESE TWO VALUES:
-    NS1_HELP_DB     = 1     # DB number where NS1_HELP is stored
-    NS1_HELP_OFFSET = 4     # Byte offset (DBD offset)
+    # Write boolean to DB1.DBX0.0
+    data = c.read_area(Areas.DB, 1, 0, 1)
+    set_bool(data, 0, 0, True)
+    c.write_area(Areas.DB, 1, 0, bytearray([0x01]))
 
-    ns1_set_timer(NS1_HELP_DB, NS1_HELP_OFFSET, 4000)  # 4 seconds
+    # Write integer 13 to DB1.DBD1 (4 bytes starting at offset 1)
+    val = 1
+    #data = bytearray(struct.pack('>i', val))
+    c.write_area(Areas.DB, 1, 1, bytearray(struct.pack('>h', 1)))
+    # Write integer 14 to DB1.DBD3 (4 bytes starting at offset 3)
+    # data = bytearray(struct.pack(">i", 1))
+    c.write_area(Areas.DB, 1, 3, bytearray(struct.pack(">i", 2)))
+    c.write_area(Areas.DB, 1, 7, bytearray(struct.pack(">f", 1)))
+
+    c.disconnect()
 
     print("\n=== NS2 ===")
     ns2_set_timer_and_start(1)  # 1 second
