@@ -4,80 +4,81 @@ from snap7.util import set_bool
 from snap7.type import Areas
 from opcua import Client, ua
 
-
 PLC_IP = "10.72.101.68"
 OPC_URL = f"opc.tcp://{PLC_IP}:4840"
 
-# ------------------------------------------------------------
-# NS1 (Snap7)
-# ------------------------------------------------------------
+# ============================================================
+# NS1 FUNCTIONS (Snap7)
+# ============================================================
 
 def s7_connect():
     c = snap7.client.Client()
     c.connect(PLC_IP, 0, 1)
     return c
 
-
 def ns1_turn_on():
     c = s7_connect()
     data = c.read_area(Areas.DB, 1, 0, 1)
-    set_bool(data, 0, 0, True)   # DB1.DBX0.0
+    set_bool(data, 0, 0, True)          # DB1.DBX0.0
     c.write_area(Areas.DB, 1, 0, data)
     c.disconnect()
-    print("[NS1] Light ON")
+    print("[NS1] Light ON (DB1.DBX0.0)")
 
-
-def ns1_set_timer_via_db(db, byte_offset, value_ms):
+def ns1_set_timer(db, offset, ms_value):
     """
-    Writes a DINT timer in milliseconds to NS1 DB.
-    Adjust DB/offset according to your PLC.
+    Writes the NS1 timer using Snap7.
+    The value must be a DINT in milliseconds.
     """
     c = s7_connect()
-    data = struct.pack(">i", value_ms)
-    c.write_area(Areas.DB, db, byte_offset, data)
+    data = struct.pack(">i", ms_value)
+    c.write_area(Areas.DB, db, offset, data)
     c.disconnect()
-    print(f"[NS1] Timer set to {value_ms} ms (DB{db}.DBD{byte_offset})")
+    print(f"[NS1] Timer set to {ms_value} ms (DB{db}.DBD{offset})")
 
 
-# ------------------------------------------------------------
-# NS2 (OPC UA)
-# ------------------------------------------------------------
+# ============================================================
+# NS2 FUNCTIONS (OPC UA)
+# ============================================================
 
 NODE_ON_OFF    = 'ns=3;s="DATA_HACK_NS2"."ON_OFF"'
 NODE_TEMPS_ON  = 'ns=3;s="DATA_HACK_NS2"."TEMPS_ON"'
 NODE_TEMPS_OFF = 'ns=3;s="DATA_HACK_NS2"."TEMPS_OFF"'
-
+HELP_VALUE = 'ns=3;s="DATA_HACK_NS2"."NS1_HELP"'
 
 def opc_write_any(client, nodeid, value):
     node = client.get_node(nodeid)
-    current_type = node.get_data_value().Value.VariantType
-    dv = ua.DataValue(ua.Variant(value, current_type))
+    t = node.get_data_value().Value.VariantType
+    dv = ua.DataValue(ua.Variant(value, t))
     node.set_value(dv)
-    print(f"[NS2] {nodeid}={value} (type matched)")
+    print(f"[NS2] {nodeid} = {value} (type OK)")
 
-
-def ns2_set_timer_and_start(time_ms):
+def ns2_set_timer_and_start(ms_time):
     c = Client(OPC_URL)
     c.connect()
-
-    opc_write_any(c, NODE_TEMPS_ON, time_ms)
-    opc_write_any(c, NODE_TEMPS_OFF, time_ms)
+    opc_write_any(c, NODE_TEMPS_ON, ms_time)
+    opc_write_any(c, NODE_TEMPS_OFF, ms_time)
     opc_write_any(c, NODE_ON_OFF, True)
-
+    opc_write_any(c, HELP_VALUE, "1")
     c.disconnect()
-    print("[NS2] Timer configured + ON_OFF TRUE")
+    print("[NS2] Timer set + ON_OFF TRUE")
 
 
-# ------------------------------------------------------------
+# ============================================================
 # MAIN EXECUTION
-# ------------------------------------------------------------
+# ============================================================
 
-print("\n=== NS1 ===")
-ns1_turn_on()
+if __name__ == "__main__":
 
-ns1_set_timer_via_db(db=1, byte_offset=4, value_ms=4000)
+    print("\n=== NS1 ===")
+    ns1_turn_on()
 
-print("\n=== NS2 ===")
-ns2_set_timer_and_start(1)  
+    # 👇 YOU MUST SET THESE TWO VALUES:
+    NS1_HELP_DB     = 1     # DB number where NS1_HELP is stored
+    NS1_HELP_OFFSET = 4     # Byte offset (DBD offset)
 
-print("\n[OK] NS1 and NS2 done.")
+    ns1_set_timer(NS1_HELP_DB, NS1_HELP_OFFSET, 4000)  # 4 seconds
+
+    print("\n=== NS2 ===")
+    ns2_set_timer_and_start(1)  # 1 second
+
+    print("\n[✓] NS1 + NS2 complete")
