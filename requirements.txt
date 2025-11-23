@@ -1,3 +1,4 @@
 # Libraries
 
 python-snap7
+opcua
